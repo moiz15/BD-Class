@@ -1,0 +1,95 @@
+@@ -0,0 +1,95 @@
+##########################################
+### WEEK 3 HOMEWORK NHL HOCKEY ANALYSIS###
+##########################################
+echo # Big-Data >> README.md
+git init
+git add README.md
+git commit -m "first commit"
+git remote add origin https://github.com/moiz15/Big-Data.git
+git push -u origin master
+#####################################################################
+### PACKAGES NEEDED: gamlr, matrix
+### Class code needed naref.R
+### Note that the hockey data is embedded within the gamlr package
+
+
+### SET UP: BUILD KEY DATA ELEMENTS FOR USE IN ALL QUESTIONS
+library(gamlr) # loads Matrix as well
+data(hockey) # load the data
+# If additional packages or data are neecded for your code, please add them here
+
+# Optional: check out the readme for the hockey dataset
+help(hockey) # describes the hockey data and shows an example regression
+
+
+## Use Matrix to Prep the data for use by gamlr, creating the data structure we discussed in class
+# Combine the covariates all together
+x <- cBind(config,team,player) # cBind binds together two sparse matrices
+# build 'y': home vs away, binary response
+y <- goal$homegoal
+
+## Run an initial gamlr regression on the NHL data
+# builds the 
+nhlreg <- gamlr(x, y, 
+                free=1:(ncol(config)+ncol(team)), ## free denotes unpenalized columns
+                family="binomial", standardize=FALSE)## Per the prof, its really rare NOT to standardize the data
+
+## coefficients (grab only the players)
+# AICc selection 
+Baicc <- coef(nhlreg)[colnames(player),]
+
+
+
+
+
+### QUESTION 1 -- NAREEN
+# [1] Interpret AICc selected model from my nhlreg lasso.
+# Just tell some stories about what the model tells you.
+
+
+
+### QUESTION 2 -- MATT
+# [2] The gamlr run for nhlreg uses standardize=FALSE.
+# Why did I do this? What happens if you do standardize?
+
+
+
+### QUESTION 3 -- KATERINA
+# [3] Compare model selection methods for the nhlreg lasso.
+# Consider both IC and CV (you'll want to create cv.nhlreg).
+
+plot(nhlreg)
+cv.nhlreg <- cv.gamlr(x,y, nfold=10, lambda.min.ratio=.001)
+
+nhlAICc <- AICc(nhlreg, k=2)
+nhlAIC <- AIC(nhlreg, k=2)
+nhlBIC <- BIC(nhlreg, k=log(nobs(nhlreg)))
+
+plot(cv.nhlreg)
+plot(AICc(nhlreg))
+plot(AIC(nhlreg))
+plot(BIC(nhlreg)) 
+
+#Just a temporary model to let me play around with the arguments in the gamlr function
+mdl <- gamlr(x, y, 
+                free=1:(ncol(config)+ncol(team)),
+                lambda.start=exp(-9),
+                family="binomial", standardize=FALSE)
+plot(mdl)
+
+
+### QUESTION 4 -- MOIZ
+# [4] We've controlled our estimates for confounding information
+# from team effects and special play configuration. How do things
+# change if we ignored this info (i.e., fit a player-only model)?
+# Which scheme is better (interpretability, CV, and IC)?
+
+
+
+
+### QUESTION 5 -- MATT
+# [+] Can you translate player Bk effects into something
+# comparable to classic Plus-Minus? How do things compare?
+
+
