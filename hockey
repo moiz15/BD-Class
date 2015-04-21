@@ -59,24 +59,63 @@ Baicc <- coef(nhlreg)[colnames(player),]
 # [3] Compare model selection methods for the nhlreg lasso.
 # Consider both IC and CV (you'll want to create cv.nhlreg).
 
+# Plot the overall regression, just to orient ourselves
 plot(nhlreg)
-cv.nhlreg <- cv.gamlr(x,y, nfold=10, lambda.min.ratio=.001)
 
+# Run a 10-fold cross validation
+cv.nhlreg <- cv.gamlr(x,y, nfold=10, select="min", lambda.min.ratio=.0005, 
+                      free=1:(ncol(config)+ncol(team)), ## free denotes unpenalized columns
+                      family="binomial", standardize=FALSE)
+
+# Calculate the AICc, AIC and BIC as well
 nhlAICc <- AICc(nhlreg, k=2)
 nhlAIC <- AIC(nhlreg, k=2)
-nhlBIC <- BIC(nhlreg, k=log(nobs(nhlreg)))
+nhlBIC <- BIC(nhlreg) 
 
+# Return the minimums (in log(lambda) units) found by each method
+log(nhlreg$lambda[which.min(nhlAICc)])
+log(nhlreg$lambda[which.min(nhlAIC)])
+log(nhlreg$lambda[which.min(nhlBIC)])
+log(cv.nhlreg$lambda.min)
+log(cv.nhlreg$lambda.1se)
+
+
+# Plot each selection method independently
 plot(cv.nhlreg)
 plot(AICc(nhlreg))
 plot(AIC(nhlreg))
 plot(BIC(nhlreg)) 
 
-#Just a temporary model to let me play around with the arguments in the gamlr function
-mdl <- gamlr(x, y, 
-                free=1:(ncol(config)+ncol(team)),
-                lambda.start=exp(-9),
-                family="binomial", standardize=FALSE)
-plot(mdl)
+## Plot the CV curve, with reference lines for the various IC methods
+ll <- log(nhlreg$lambda) ## the sequence of lambdas
+par(mfrow=c(1,2))
+plot(cv.nhlreg)
+plot(ll, AIC(nhlreg)/n, 
+     xlab="log lambda", ylab="IC/n", pch=21, bg="orange")
+abline(v=ll[which.min(AIC(nhlreg))], col="orange", lty=3)
+abline(v=ll[which.min(BIC(nhlreg))], col="green", lty=3)
+abline(v=ll[which.min(AICc(nhlreg))], col="black", lty=3)
+points(ll, BIC(nhlreg)/n, pch=21, bg="green")
+points(ll, AICc(nhlreg)/n, pch=21, bg="black")
+legend("topleft", bty="n",
+       fill=c("black","orange","green"),legend=c("AICc","AIC","BIC"))
+
+  
+  ## All metrics plotted together in a path plot.
+  plot(nhlreg, col="grey")
+  abline(v=ll[which.min(AICc(nhlreg))], col="black", lty=2)
+  abline(v=ll[which.min(AIC(nhlreg))], col="orange", lty=2)
+  abline(v=ll[which.min(BIC(nhlreg))], col="green", lty=2)
+  abline(v=log(cv.nhlreg$lambda.min), col="blue", lty=2)
+  abline(v=log(cv.nhlreg$lambda.1se), col="purple", lty=2)
+  legend("topright", bty="n", lwd=1, 
+         col=c("black","orange","green","blue","purple"),
+         legend=c("AICc","AIC","BIC","CV.min","CV.1se"))
+
+
+
+
+
 
 
 ### QUESTION 4 -- MOIZ
