@@ -1,0 +1,211 @@
+##########################################
+##### WEEK 4 HOMEWORK MICROFINANCE #######
+##########################################
+## microfinance network 
+## data from BANERJEE, CHANDRASEKHAR, DUFLO, JACKSON 2012
+
+
+
+##### LOAD DATA
+
+## data on 8622 households
+hh <- read.csv("microfi_households.csv", row.names="hh")
+
+
+
+###### SET UP CODE FROM THE PROFESSOR ########################################
+##### SOME GRAPHING OF THE "NETWORK STUFF" TO HELP ORIENT OURSELVES 
+
+
+## We'll kick off with a bunch of network stuff.
+## This will be covered in more detail in lecture 6.
+## get igraph off of CRAN if you don't have it
+## install.packages("igraph")
+## this is a tool for network analysis
+## (see http://igraph.sourceforge.net/)
+
+library(igraph) # igraph manipulates graph objects
+edges <- read.table("microfi_edges.txt", colClasses="character")
+
+## edges holds connections between the household ids
+hhnet <- graph.edgelist(as.matrix(edges)) # I believe this creates a graph object of our network -KS 
+hhnet <- as.undirected(hhnet) # two-way connections. # I believe this ensures the relationships between nodes are 2-day -KS
+
+## igraph is all about plotting.  
+V(hhnet) ## our 8000+ household vertices
+#This gives you a list of how each node connects with each other node. 
+# I think using the "V()" function translates the information into a digestible format
+# If you use "head()" you get a bunch of sparse matrix gobbledygood that says the same thing in a less intuitive way
+
+## Each vertex (node) has some attributes, and we can add more.
+V(hhnet)$village <- as.character(hh[V(hhnet),'village']) # This adds the village information to our hhnet network
+
+
+## we'll color them by village membership
+vilcol <- rainbow(nlevels(hh$village))
+names(vilcol) <- levels(hh$village)
+V(hhnet)$color = vilcol[V(hhnet)$village]
+
+
+## drop HH labels from plot
+V(hhnet)$label=NA
+
+
+# graph plots try to force distances proportional to connectivity
+# imagine nodes connected by elastic bands that you are pulling apart
+# The graphs can take a very long time, but I've found
+# edge.curved=FALSE speeds things up a lot.  Not sure why.
+
+## we'll use induced.subgraph and plot a couple villages 
+village1 <- induced.subgraph(hhnet, v=which(V(hhnet)$village=="1"))
+village33 <- induced.subgraph(hhnet, v=which(V(hhnet)$village=="33"))
+
+# vertex.size=3 is small.  default is 15
+plot(village1, vertex.size=3, edge.curved=FALSE)
+plot(village33, vertex.size=3, edge.curved=FALSE)
+
+
+
+####################################### SET UP CODE FROM PROFESSOR
+
+library(gamlr)
+
+## match id's; I call these 'zebras' because they are like crosswalks
+zebra <- match(rownames(hh), V(hhnet)$name)
+
+## calculate the `degree' of each hh: 
+##  number of commerce/friend/family connections
+degree <- degree(hhnet)[zebra]
+names(degree) <- rownames(hh)
+degree[is.na(degree)] <- 0 # unconnected houses, not in our graph
+
+## if you run a full glm, it takes forever and is an overfit mess
+# > summary(full <- glm(loan ~ degree + .^2, data=hh, family="binomial"))
+# Warning messages:
+# 1: glm.fit: algorithm did not converge 
+# 2: glm.fit: fitted probabilities numerically 0 or 1 occurred 
+
+
+
+#### HOMEWORK QUESTIONS BEGIN ##################################
+
+### QUESTION 1: MOIZ
+### [1]. I'd transform degree to create our treatment variable d.
+### What would you do and why?
+
+
+
+
+
+### QUESTION 2: KATERINA
+### [2]. Build a model to predict d from x, our controls.
+### Comment on how tight the fit is, and what that
+### implies for estimation of a treatment effect.
+
+
+## Understanding the data
+summary(degree) # the range of the data is from 0 to 90, with a mean at 9
+plot(degree) # notice that there are a bunch of outliers skewing things a bit
+plot(log(degree)) # the data seems better behaved on a log scale
+hist(degree)# skewed to the left
+hist(log(degree))# looks more normally distributed
+
+## Let's set our d as the log(degree)
+d <- log(degree)
+# NOTE THAT WHEN I TRY TO USE d or log(degree) IN GLM, I GET AN ERROR MESSAGE
+
+# Our Y will be whether or not they take out a loan
+y <- hh$loan
+
+# our X will be everything else
+x <- 
+
+
+## if you run a full glm, it takes forever and is an overfit mess
+# > summary(full <- glm(loan ~ degree + .^2, data=hh, family="binomial")) # I'm not sure what the "^2" is for--is he squaring everything?
+
+# Let's start by running the full glm and see what happens
+fullglm <- glm(y ~ degree + village + roof + religion + rooms + electricity + ownership + leader, data=hh, family="binomial")
+summary(fullglm) 
+AICc(fullglm) # AICc = 7079.297
+coef(fullglm)
+# seems to run okay, though I didn't square the Xs
+
+
+# Okay, enough playin'. Let's get our gamlr on! 
+library(gamlr)
+
+x <- hh$rooms
+y <- hh$loan
+
+# Run the lasson on everything without worrying about making anything free:
+test <- gamlr(x,y) 
+             # family="binomial", lambda.min.ratio=0.01, 
+              # free=NULL, standardize=TRUE)
+summary(test)
+AICc(test)
+
+
+## naive lasso regression
+#naive <- gamlr(cBind(d,x),y)
+#coef(naive)["d",] # effect is AICc selected <0
+
+## now, what if we explicitly include dhat confounding:
+#treat <- gamlr(x,d,lambda.min.ratio=1e-4)
+# we needed to drop lambda.min.ratio because AICc wants a complex model
+# that indicates that abortion rates are highly correlated with controls.
+#plot(treat)
+
+# Now, grab the predicted treatment
+# type="response" is redundant here (gaussian), 
+# but you'd want it if d was binary
+#dhat <- predict(treat, x, type="response") 
+
+## not much signal in d not predicted by dhat
+#plot(dhat,d,bty="n",pch=21,bg=8) 
+## that means we have little to resemble an experiment here...
+
+## IS R^2?
+#cor(drop(dhat),d)^2
+## Note: IS R2 is what governs how much independent signal
+## you have for estimating 
+
+# re-run lasso, with this (2nd column) included unpenalized
+#causal <- gamlr(cBind(d,dhat,x),y,free=2)
+#coef(causal)["d",] # AICc says abortion has no causal effect.
+
+
+
+
+
+
+
+
+### QUESTION 3: KATERINA
+### [3]. Use predictions from [2] in an estimator for effect of d on loan.
+
+
+
+
+
+### QUESTION 4: NAREEN
+### [4]. Compare the results from [3] to those from a straight (naive) lasso
+### for loan on d and x. Explain why they are similar or different.
+
+
+
+
+
+### QUESTION 5: MATT
+### [5]. Bootstrap your estimator from [3] and describe the uncertainty.
+
+
+
+
+
+### QUESTION 6: MOIZ
+### [+]. Can you think of how you'd design an experiment
+### to estimate the treatment effect of network degree?
+
+
+
