@@ -113,40 +113,28 @@ hist(log(degree))# looks more normally distributed
  # so I"m just going to use degree for now
 
 
-
 d <- degree # This is our test variable
-
 y <- hh$loan # Our Y will be whether or not they take out a loan
-
-x <- cBind(d, hh$village, hh$religion, hh$roof, 
+x <- cBind(hh$village, hh$religion, hh$roof, 
            hh$rooms, hh$electricity, hh$ownership, hh$leader) # our X will be everything else
 # Note you HAVE to use cBind on your x variables, or gamlr gets mad at you
+
 
 # Okay, enough playin'. Let's get our gamlr on! 
 library(gamlr)
 
 # Run the lasso on everything without worrying about making anything free:
-naive <- gamlr(x,y,              
+naive <- gamlr(cBind(d,x),y,              
              family="binomial", lambda.min.ratio=0.001)
 coef(naive)["d",] # effect is AICc selected <0
 plot(naive)
 
-
-# Run the lasso again, this time allowing degree to be unpenalized
-savvy <- gamlr(x,y,              
-               family="binomial", lambda.min.ratio=0.001, 
-               free=1) # degree is col 1, so free=1 means there is no penalty for degree
-coef(savvy)["d",]
-plot(savvy)
-# meh. Doesn't look much different--looks like we will need to do more.
 
 
 #### Now let's try the double lasso
 
 ##ROUND 1: REGRESS X ON D
 #first, let's take d out of x:
-x <- cBind(hh$village, hh$religion, hh$roof, 
-           hh$rooms, hh$electricity, hh$ownership, hh$leader) # our X will be everything else
 
 # Regress x on d 
 treat <- gamlr(x,d, lambda.min.ratio=0.001)
@@ -162,19 +150,34 @@ plot(dhat,d,bty="n",pch=21,bg=8)
 cor(drop(dhat),d)^2 #IS R2
     ## Note: IS R2 is what governs how much independent signal you have for estimating 
 
+
+### QUESTION 3: KATERINA
+### [3]. Use predictions from [2] in an estimator for effect of d on loan.
+
 ##ROUND 2: RERUN THE LASSO INCLUDING dhat
 # re-run lasso, with this (2nd column) included unpenalized
-causal <- gamlr(cBind(d,dhat,x),y,free=2)
+causal <- gamlr(cBind(d,dhat,x),y,free=2, family="binomial")
 coef(causal)["d",]
 plot(causal)
 
 
+## Look more closely at our final model, "causal"
+
+# Calcuate AICc
+causalAIC <- AICc(causal)
+plot(causalAIC)
+log(causal$lambda[which.min(causalAIC)])
+
+# Crossvalidation
+causal.cv <- cv.gamlr(cBind(d,dhat,x),y,nfold=10, free=2, family="binomial", lambda.min.ratio=0.001)
+plot(causal.cv)
+log(causal.cv$lambda.min)
+log(causal.cv$lambda.1se)
+
+leftover <- predict(causal,x, type="response") #I think the type should be binary or binomial, but it won't parse...
+plot(leftover,d,bty="n",pch=21,bg=8) 
 
 
-
-
-### QUESTION 3: KATERINA
-### [3]. Use predictions from [2] in an estimator for effect of d on loan.
 
 
 
