@@ -106,14 +106,13 @@ degree[is.na(degree)] <- 0 # unconnected houses, not in our graph
 ## Understanding the data
 summary(degree) # the range of the data is from 0 to 90, with a mean at 9
 plot(degree) # notice that there are a bunch of outliers skewing things a bit
-plot(log(degree)) # the data seems better behaved on a log scale
+# We can't transform with log because some of the numbers are 0s
+plot(degree)
 hist(degree)# skewed to the left
-hist(log(degree))# looks more normally distributed
-## I'd like to set our d as the log(degree), but it gives me errors, 
- # so I"m just going to use degree for now
 
 
-d <- degree # This is our test variable
+
+d <- degree^2 # This is our test variable
 y <- hh$loan # Our Y will be whether or not they take out a loan
 x <- cBind(hh$village, hh$religion, hh$roof, 
            hh$rooms, hh$electricity, hh$ownership, hh$leader) # our X will be everything else
@@ -124,8 +123,8 @@ x <- cBind(hh$village, hh$religion, hh$roof,
 library(gamlr)
 
 # Run the lasso on everything without worrying about making anything free:
-naive <- gamlr(cBind(d,x),y,              
-             family="binomial", lambda.min.ratio=0.001)
+naive <- gamlr(cBind(d,x),y,
+               family="binomial", lambda.min.ratio=0.001)
 coef(naive)["d",] # effect is AICc selected <0
 plot(naive)
 
@@ -133,49 +132,61 @@ plot(naive)
 
 #### Now let's try the double lasso
 
-##ROUND 1: REGRESS X ON D
+# ROUND 1: REGRESS X ON D
 #first, let's take d out of x:
 
 # Regress x on d 
 treat <- gamlr(x,d, lambda.min.ratio=0.001)
+
+# Describe the treat regression
 plot(treat)
+coef(treat)
+names(treat)
+log(which.min(AICc(treat))) #AICc
 
-# Now, grab the predicted treatment
-# type="response" is redundant here (gaussian), 
-# but you'd want it if d was binary
-dhat <- predict(treat, x, type="response") 
 
-## Let's look at how much signal is "left over"
-plot(dhat,d,bty="n",pch=21,bg=8) 
-cor(drop(dhat),d)^2 #IS R2
-    ## Note: IS R2 is what governs how much independent signal you have for estimating 
 
 
 ### QUESTION 3: KATERINA
 ### [3]. Use predictions from [2] in an estimator for effect of d on loan.
 
-##ROUND 2: RERUN THE LASSO INCLUDING dhat
+# Now, grab the predicted treatment
+dhat <- predict(treat, x, type="response") 
+
+## Let's look at how much signal is "left over"
+plot(dhat,d,bty="n") 
+cor(drop(dhat),d)^2 #IS R2
+## Note: IS R2 is what governs how much independent signal you have for estimating 
+
+
+# ROUND 2: RERUN THE LASSO INCLUDING dhat
 # re-run lasso, with this (2nd column) included unpenalized
 causal <- gamlr(cBind(d,dhat,x),y,free=2, family="binomial")
-coef(causal)["d",]
+log(coef(causal)["d",])
 plot(causal)
+log(which.min(AICc(causal)))
+
+# type="response" is redundant here (gaussian), 
+# but you'd want it if d was binary
+yhat <- predict(causal,cBind(d,dhat,x), type="response") #I think the type should be binary or binomial, but it won't parse...
+plot(yhat,dhat)
+plot(yhat,y)
+cor(drop(yhat),d)^2 #IS R2
+
 
 
 ## Look more closely at our final model, "causal"
 
 # Calcuate AICc
 causalAIC <- AICc(causal)
-plot(causalAIC)
 log(causal$lambda[which.min(causalAIC)])
+plot(causalAIC)
 
 # Crossvalidation
 causal.cv <- cv.gamlr(cBind(d,dhat,x),y,nfold=10, free=2, family="binomial", lambda.min.ratio=0.001)
 plot(causal.cv)
 log(causal.cv$lambda.min)
 log(causal.cv$lambda.1se)
-
-leftover <- predict(causal,x, type="response") #I think the type should be binary or binomial, but it won't parse...
-plot(leftover,d,bty="n",pch=21,bg=8) 
 
 
 
