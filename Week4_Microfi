@@ -110,9 +110,11 @@ plot(degree) # notice that there are a bunch of outliers skewing things a bit
 plot(degree)
 hist(degree)# skewed to the left
 
+# Rejected transformations:
+#d <- log(1+degree)
+#d<- degree^2
 
-
-d <- degree^2 # This is our test variable
+d <- (degree-mean(degree))/sd(degree) # This is our test variable
 y <- hh$loan # Our Y will be whether or not they take out a loan
 x <- cBind(hh$village, hh$religion, hh$roof, 
            hh$rooms, hh$electricity, hh$ownership, hh$leader) # our X will be everything else
@@ -122,12 +124,15 @@ x <- cBind(hh$village, hh$religion, hh$roof,
 # Okay, enough playin'. Let's get our gamlr on! 
 library(gamlr)
 
-# Run the lasso on everything without worrying about making anything free:
+# Run the lasso on everything blindly:
 naive <- gamlr(cBind(d,x),y,
                family="binomial", lambda.min.ratio=0.001)
 coef(naive)["d",] # effect is AICc selected <0
 plot(naive)
 
+# Run the lasso without including degree 
+strawman <- gamlr(x,y,
+                  family="binomial", lambda.min.ratio=0.001)
 
 
 #### Now let's try the double lasso
@@ -140,15 +145,7 @@ treat <- gamlr(x,d, lambda.min.ratio=0.001)
 
 # Describe the treat regression
 plot(treat)
-coef(treat)
-names(treat)
 log(which.min(AICc(treat))) #AICc
-
-
-
-
-### QUESTION 3: KATERINA
-### [3]. Use predictions from [2] in an estimator for effect of d on loan.
 
 # Now, grab the predicted treatment
 dhat <- predict(treat, x, type="response") 
@@ -157,6 +154,11 @@ dhat <- predict(treat, x, type="response")
 plot(dhat,d,bty="n") 
 cor(drop(dhat),d)^2 #IS R2
 ## Note: IS R2 is what governs how much independent signal you have for estimating 
+
+
+
+### QUESTION 3: KATERINA
+### [3]. Use predictions from [2] in an estimator for effect of d on loan.
 
 
 # ROUND 2: RERUN THE LASSO INCLUDING dhat
@@ -171,7 +173,7 @@ log(which.min(AICc(causal)))
 yhat <- predict(causal,cBind(d,dhat,x), type="response") #I think the type should be binary or binomial, but it won't parse...
 plot(yhat,dhat)
 plot(yhat,y)
-cor(drop(yhat),d)^2 #IS R2
+cor(drop(yhat),y)^2 #IS R2
 
 
 
@@ -184,9 +186,43 @@ plot(causalAIC)
 
 # Crossvalidation
 causal.cv <- cv.gamlr(cBind(d,dhat,x),y,nfold=10, free=2, family="binomial", lambda.min.ratio=0.001)
-plot(causal.cv)
 log(causal.cv$lambda.min)
 log(causal.cv$lambda.1se)
+
+naive.cv <- cv.gamlr(cBind(d,x),y,nfold=10, family="binomial", lambda.min.ratio=0.001)
+log(naive.cv$lambda.min)
+log(naive.cv$lambda.1se)
+
+
+straw.cv <- cv.gamlr(cBind(x),y,nfold=10, family="binomial", lambda.min.ratio=0.001)
+log(straw.cv$lambda.min)
+log(straw.cv$lambda.1se)
+
+
+# Compare Coefficients
+coef(naive)["d",] # effect is AICc selected <0
+coef(treat)["d",] # effect is AICc selected <0
+coef(causal)["d",] # effect is AICc selected <0
+
+#Compare AICcs
+log(which.min(AICc(strawman))) #D not included
+log(which.min(AICc(naive))) #Naive
+log(which.min(AICc(treat))) #X on D
+log(which.min(AICc(causal))) #X+D on Y
+
+#Compare IS R2
+cor(drop(dhat),d)^2 #IS R2 dhat
+cor(drop(yhat),y)^2 #IS R2 yhat
+
+
+#Gimmie the topline:
+log(which.min(AICc(causal))) #AICc
+causal.cv <- cv.gamlr(cBind(d,dhat,x),y,nfold=10, free=2, family="binomial", lambda.min.ratio=0.001)
+log(causal.cv$lambda.min) #CV.min
+coef(causal)["d",] # coeff for d
+
+
+
 
 
 
