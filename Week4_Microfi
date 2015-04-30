@@ -244,9 +244,29 @@ coef(causal)["d",] # coeff for d
 ### QUESTION 5: MATT
 ### [5]. Bootstrap your estimator from [3] and describe the uncertainty.
 
-
-
-
+## Repurposing the below from the abortion.R example:
+# first get a rowcount on x:
+n <- nrow(x)
+## then create and empty gamma vector:
+gamb <- c() 
+for(b in 1:1000){  # <-- iterate through:
+  ## create a matrix of resampled indices
+  ib <- sample(1:n, n, replace=TRUE)
+  ## create the resampled data
+  xb <- x[ib,]
+  db <- d[ib]
+  yb <- y[ib]
+  ## run the treatment regression
+  treatb <- gamlr(xb,db,lambda.min.ratio=1e-3)
+  dhatb <- predict(treatb, xb, type="response")
+  
+  fitb <- gamlr(cBind(db,dhatb,xb),yb,free=2)
+  gamb <- c(gamb,coef(fitb)["db",])
+  print(b)
+}
+# Run a summary on gamb, then a histogram:
+summary(gamb) 
+hist(gamb)
 
 ### QUESTION 6: MOIZ
 ### [+]. Can you think of how you'd design an experiment
