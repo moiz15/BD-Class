@@ -1,0 +1,139 @@
+################################################################
+########## WEEK 6 / HOMEWORK 5 #################################
+########## IMDB ACTORS DATA    #################################
+################################################################
+
+### LOAD FILES & LIBRARIES #####################################
+
+setwd("WEEK6")
+
+library(igraph)
+
+### GRAPH
+## read in a graph in the `graphml' formal: xml for graphs.
+## it warns about pre-specified ids, but we want this here
+## (these ids match up with the castlists in movies.txt)
+actnet <- read.graph("actors.graphml",format="graphml")
+
+### TRANSACTION
+## read in the table of actor ids for movies
+## this is a bit complex, because the movie names
+## contain all sorts of special characters.
+movies <- read.table("movies.txt", sep="\t", 
+                     row.names=1, as.is=TRUE, comment.char="", quote="")
+
+
+### FORMAT DATA FOR USE #####################################
+
+## it's a 1 column matrix, so treat it like a vector
+movies <- drop(as.matrix(movies))
+
+## each element is a comma-separated set of actor ids.  
+## use `strsplit' to break these out
+movies <- strsplit(movies,",")
+
+## and finally, match ids to names from actnet
+casts <- lapply(movies, 
+                function(m) V(actnet)$name[match(m,V(actnet)$id)])
+
+## check it
+casts['True Romance']
+
+## format as arules transaction baskets
+library(arules)
+casttrans <- as(casts, "transactions")
+
+## Set up STM information
+castsize <- unlist(lapply(casts, function(m) length(m)))
+
+## see ?rep.int: we're just repeating movie names for each cast member
+acti <- factor(rep.int(names(casts),times=castsize))
+
+## actors
+actj <- factor(unlist(casts), levels=V(actnet)$name)
+
+## format as STM (if you specify without `x', its binary 0/1)
+actmat <- sparseMatrix(i=as.numeric(acti),j=as.numeric(actj),
+                       dimnames=list(movie=levels(acti),actor=levels(actj)))
+
+## count the number of appearences by actor
+nroles <- colSums(actmat)
+names(nroles) <- colnames(actmat)
+
+
+
+### QUESTION 1 -- KATERINA #####################################
+# [1] The actors network has an edge if the two actors were in the same
+# movie. Plot the entire actors network.
+
+plot(actnet,vertex.label=NA, edge.curved=FALSE)
+# Funny story--try graphing this without turning off the labels.
+  
+
+
+
+### QUESTION 2 -- KATERINA #####################################
+# [2] Plot the neighborhoods for “Bacon, Kevin” at orders 1-3.
+# How does the size of the network change with order?
+
+# Graph the 1st Order Neighborhood
+actor <- "Bacon, Kevin" 
+costars1 <- graph.neighborhood(actnet, 1, V(actnet)[actor])[[1]]
+V(costars1)$color = "yellow"
+V(costars1)[actor]$color <- "red"
+V(costars1)$label.color = "black"
+V(costars1)$frame.color = NA
+plot(costars1, vertex.label=NA, vertex.size=12, edge.curved=FALSE, 
+     main="1st Order Connections of Kevin Bacon")
+
+# Graph the 2nd Order Neighborhood
+costars2 <- graph.neighborhood(actnet, 2, V(actnet)[actor])[[1]]
+V(costars2)$color = "green"
+V(costars2)[V(costars1)$name]$color = "yellow"
+V(costars2)[actor]$color <- "red"
+V(costars2)$label.color = "black"
+V(costars2)$frame.color = NA
+plot(costars2, vertex.label=NA, vertex.size=12, edge.curved=FALSE, 
+     main="2nd Order Connections of Kevin Bacon")
+
+# Graph the 3rd Order Neighborhood
+costars3 <- graph.neighborhood(actnet, 3, V(actnet)[actor])[[1]]
+V(costars3)$color = "blue"
+V(costars3[V(costars2)$name]$color = "green"
+V(costars3[V(costars1)$name]$color = "yellow"
+V(costars3)[actor]$color <- "red"
+V(costars3)$label.color = "black"
+V(costars3)$frame.color = NA
+plot(costars3, vertex.label=NA, vertex.size=12, edge.curved=FALSE, 
+     main="3rd Order Connections of Kevin Bacon")
+
+
+# Get the size of 1st, 2nd and 3rd order network
+deg1 <- neighborhood.size(actnet,1, V(actnet)[actor])
+deg2 <- neighborhood.size(actnet,2, V(actnet)[actor])
+deg3 <- neighborhood.size(actnet,3, V(actnet)[actor])
+deg4 <- neighborhood.size(actnet,4, V(actnet)[actor])
+deg5 <- neighborhood.size(actnet,5, V(actnet)[actor])
+deg6 <- neighborhood.size(actnet,6, V(actnet)[actor])
+degrees.KevinBacon <- c(deg1, deg2, deg3, deg4, deg5, deg6)
+
+plot(degrees.KevinBacon, type="b", main="Number of Actors Within Each Degree of Kevin Bacon")
+
+
+
+
+### QUESTION 3 -- MATT #####################################
+# [3] Who were the most common actors? Who were most connected?
+# Pick a pair of actors and describe the shortest path between them.
+
+
+
+### QUESTION 4 -- MOIZ #####################################
+# [4] Find pairwise actor-cast association rules with at least 0.01%
+# support and 10% confidence. Describe what you find.
+
+
+
+### QUESTION 5 -- NAREEN #####################################
+# [+] What would be a regression based alternative to ARules?
+# Execute it for a single RHS actor.
