@@ -1,0 +1,94 @@
+#################################################################
+############# WEEK 7: CONGRESSIONAL SPEECH ######################
+#################################################################
+
+#### LOAD LIBRARIES & READY THE DATA ############################
+
+library(textir) # to get the data
+library(maptpx) # for the topics function
+
+data(congress109)
+?congress109#To get information about the data
+
+# Create shorter variable names to make coding easier :)
+ideo <- congress109Ideology
+
+
+
+
+### HOMEWORK QUESTIONS ##########################################
+
+## QUESTION 1 #########################################
+# [1] Fit K-means to speech text for K in 5,10,15,20,25.
+# Use BIC to choose the K and interpret the selected model.
+
+#NAREEN
+
+
+
+
+## QUESTION 2 #########################################
+# [2] Fit a topic model for the speech counts. Use Bayes factors to
+# choose the number of topics, and interpret your chosen model.
+
+# Unlike the K-means question, we don't need to scale the data,
+# but we do need to transfer it into a "single triplet matrix" format
+cnts <- as.simple_triplet_matrix(congress109Counts)
+
+# Here we can fit it, specifying the number of `topics' K, and any other args
+tpc_naive <- topics(cnts,K=10) 
+
+## choosing the number of topics
+## If you supply a vector of topic sizes, it uses a Bayes factor to choose
+## (BF is like exp(-BIC), so you choose the bigggest BF)
+## the algo stops if BF drops twice in a row
+tpcs <- topics(cnts,K=5*(1:5)) # Covers K from 5-25 in increments of 5
+summary(tpcs, n=10)
+# Selects a model where k = 10
+
+# Let's look more closely at around k=10
+tpcs <- topics(cnts,K=6:14) # Covers K from 6-14
+summary(tpcs, n=10)
+# Selects the k = 14 model
+
+# alternatively, we can look at words ordered by simple in-topic prob
+rownames(tpcs$theta)[order(tpcs$theta[,1], decreasing=TRUE)[1:10]]
+rownames(tpcs$theta)[order(tpcs$theta[,2], decreasing=TRUE)[1:10]]
+rownames(tpcs$theta)[order(tpcs$theta[,3], decreasing=TRUE)[1:10]]
+rownames(tpcs$theta)[order(tpcs$theta[,4], decreasing=TRUE)[1:10]]
+rownames(tpcs$theta)[order(tpcs$theta[,5], decreasing=TRUE)[1:10]]
+rownames(tpcs$theta)[order(tpcs$theta[,6], decreasing=TRUE)[1:10]]
+rownames(tpcs$theta)[order(tpcs$theta[,7], decreasing=TRUE)[1:10]]
+rownames(tpcs$theta)[order(tpcs$theta[,8], decreasing=TRUE)[1:10]]
+rownames(tpcs$theta)[order(tpcs$theta[,9], decreasing=TRUE)[1:10]]
+rownames(tpcs$theta)[order(tpcs$theta[,10], decreasing=TRUE)[1:10]]
+rownames(tpcs$theta)[order(tpcs$theta[,11], decreasing=TRUE)[1:10]]
+rownames(tpcs$theta)[order(tpcs$theta[,12], decreasing=TRUE)[1:10]]
+rownames(tpcs$theta)[order(tpcs$theta[,13], decreasing=TRUE)[1:10]]
+rownames(tpcs$theta)[order(tpcs$theta[,14], decreasing=TRUE)[1:10]]
+
+
+## QUESTION 3 #########################################
+# IF YOU HAVEN'T DONE SO, YOU MAY NEED TO RUN THESE TWO VARIABLES FROM Q2:
+# cnts <- as.simple_triplet_matrix(congress109Counts)
+# tpcs <- topics(cnts,K=14)
+
+
+# [3] Connect the unsupervised clusters to partisanship.
+# MATT
+
+
+# Tabulate party membership by K-means cluster.
+# Are there any non-partisan topics?
+# MATT
+
+
+
+
+
+# Fit topic regressions for each of party and repshare.
+# MOIZ 
+
+# Compare to regression onto phrase percentages:
+#  x<-100*congress109Counts/rowSums(congress109Counts)
+# MOIZ
