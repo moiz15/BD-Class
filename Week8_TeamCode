@@ -1,0 +1,83 @@
+#####################################################
+#####  WEEK 8:  #########################
+#####################################################
+
+###### GATHER FILES & PACKAGES ####################
+
+setwd("WEEK8")
+
+
+# FX data is in FXmonthly.csv.
+# Translate the prices to ‘returns’ via
+fx <- read.csv("FXmonthly.csv")
+fx <- (fx[2:120,]-fx[1:119,])/(fx[1:119,])
+
+# SP500 returns are in sp500csv.
+sp <- read.csv("sp500.csv")
+sp <- data.frame(sp$sp500)
+
+# Currency codes are in currency codes.txt.
+
+
+
+### HOMEWORK QUESTIONS #######################################
+# What are the latent factors of international currency pricing?
+# And how do these factor move against US equities?
+# We’re going to investigate underlying factors in currency
+# exchange rates and regress the S&P 500 onto this information.
+
+
+### QUESITON 1 #############################################
+# [1] Discuss correlation amongst dimensions of fx.
+# How does this relate to the applicability of factor modelling?
+
+### Basically, we're going to need to show that there is colinearity,
+## And that we therefore want to use factor modeling --Katerina
+
+
+
+### QUESITON 2 #############################################
+# [2] Fit, plot, and interpret principal components.
+
+pca <- prcomp(fx, scale=TRUE )
+
+
+### QUESITON 3 #############################################
+# [3] Regress SP500 returns onto currency movement factors,
+# using both ‘glm on first K’ and lasso techniques.
+# Use the results to add to your factor interpretation.
+
+# glm on first k technique
+fx.z <- predict(pca)
+fx.z <- data.frame(fx.z)
+
+
+pc.glm <- glm(sp~ fx.z) 
+# not sure why we're getting an error on this 
+
+# lasso technique
+sp <- sparse.model.matrix(~ sp.sp500, data=sp)
+fx.z <- sparse.model.matrix(~ ., data=fx.z)
+
+pc.lasso <- gamlr(fx.z, sp) 
+summary(pc.lasso)[as.numeric(which.min(AICc(pc.lasso))),]
+plot(pc.lasso)
+coef(pc.lasso)
+
+# 
+### QUESITON 4 #############################################
+# [4] Fit lasso to the original covariates and
+# describe how it differs from PCR here.
+
+fx <- sparse.model.matrix(~ ., data=fx)
+fx.lasso <- gamlr(fx, sp) 
+summary(fx.lasso)[as.numeric(which.min(AICc(fx.lasso))),]
+plot(fx.lasso)
+coef(fx.lasso)
+
+
+# MATT #
+### QUESITON 5 #############################################
+# [+] Fit marginal regression and PLS and compare to PCA.
+
+
