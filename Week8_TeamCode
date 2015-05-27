@@ -80,14 +80,19 @@ R2(pc1.glm)
 R2(pc.glm)
 R2(pc.sig)
 
-# lasso technique
-xsp <- sparse.model.matrix(~ sp500, data=sp)
-xfx.z <- sparse.model.matrix(~ ., data=fx.z)
+# lasso technique 
 
-pc.lasso <- gamlr(xfx.z, xsp) 
+# First make sure everything is in the right format for gamlr
+sp <- read.csv("sp500.csv")
+sp <- as.vector(sp$sp500)
+fx.z <- sparse.model.matrix(~ ., data=fx.z)
+
+pc.lasso <- gamlr(fx.z, xsp) 
 summary(pc.lasso)[as.numeric(which.min(AICc(pc.lasso))),]
 plot(pc.lasso)
 coef(pc.lasso)
+
+
 # MATT # 
 ### QUESITON 4 #############################################
 # [4] Fit lasso to the original covariates and
