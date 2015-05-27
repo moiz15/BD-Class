@@ -27,6 +27,7 @@ sp <- data.frame(sp$sp500)
 # exchange rates and regress the S&P 500 onto this information.
 
 
+# MOIZ #
 ### QUESITON 1 #############################################
 # [1] Discuss correlation amongst dimensions of fx.
 # How does this relate to the applicability of factor modelling?
@@ -35,13 +36,13 @@ sp <- data.frame(sp$sp500)
 ## And that we therefore want to use factor modeling --Katerina
 
 
-
+# NAREEN #
 ### QUESITON 2 #############################################
 # [2] Fit, plot, and interpret principal components.
 
 pca <- prcomp(fx, scale=TRUE )
 
-
+# KATERINA # 
 ### QUESITON 3 #############################################
 # [3] Regress SP500 returns onto currency movement factors,
 # using both ‘glm on first K’ and lasso techniques.
@@ -50,21 +51,33 @@ pca <- prcomp(fx, scale=TRUE )
 # glm on first k technique
 fx.z <- predict(pca)
 fx.z <- data.frame(fx.z)
+sp <- data.frame(sp)
+pca.me <- c(sp,fx.z)
 
+pc1.glm <- glm(sp500 ~ PC1, data=pca.me) 
+summary(pc1.glm)
+AIC(pc1.glm)
 
-pc.glm <- glm(sp~ fx.z) 
-# not sure why we're getting an error on this 
+pc.glm <-  glm(sp500 ~ ., data=pca.me)  
+summary(pc.glm)
+AIC(pc.glm)
+
+pc.sig <-  glm(sp500 ~ PC1 + PC2 + PC3 + PC15 + PC17 + PC20, data=pca.me)  
+summary(pc.sig)
+AIC(pc.sig)
+
 
 # lasso technique
-sp <- sparse.model.matrix(~ sp.sp500, data=sp)
-fx.z <- sparse.model.matrix(~ ., data=fx.z)
+xsp <- sparse.model.matrix(~ sp.sp500, data=sp)
+xfx.z <- sparse.model.matrix(~ ., data=fx.z)
 
-pc.lasso <- gamlr(fx.z, sp) 
+pc.lasso <- gamlr(xfx.z, xsp) 
 summary(pc.lasso)[as.numeric(which.min(AICc(pc.lasso))),]
 plot(pc.lasso)
 coef(pc.lasso)
 
-# 
+
+# MATT # 
 ### QUESITON 4 #############################################
 # [4] Fit lasso to the original covariates and
 # describe how it differs from PCR here.
